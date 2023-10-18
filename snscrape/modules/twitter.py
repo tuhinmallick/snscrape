@@ -871,12 +871,11 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 			instructions = obj
 			for k in instructionsPath:
 				instructions = instructions.get(k, {})
-			if instructions:
-				# Emit a warning if there are instructions since it could indicate incomplete data
-				_logger.warn(msg)
-				return True, None
-			else:
+			if not instructions:
 				return False, msg
+			# Emit a warning if there are instructions since it could indicate incomplete data
+			_logger.warn(msg)
+			return True, None
 		return True, None
 
 	def _get_api_data(self, endpoint, apiType, params, instructionsPath = None):
@@ -1105,10 +1104,15 @@ class _TwitterAPIScraper(snscrape.base.Scraper):
 			if medium.get('ext_alt_text'):
 				mKwargs['altText'] = medium['ext_alt_text']
 			return Photo(**mKwargs)
-		elif medium['type'] == 'video' or medium['type'] == 'animated_gif':
-			variants = []
-			for variant in medium['video_info']['variants']:
-				variants.append(VideoVariant(contentType = variant['content_type'], url = variant['url'], bitrate = variant.get('bitrate')))
+		elif medium['type'] in ['video', 'animated_gif']:
+			variants = [
+				VideoVariant(
+					contentType=variant['content_type'],
+					url=variant['url'],
+					bitrate=variant.get('bitrate'),
+				)
+				for variant in medium['video_info']['variants']
+			]
 			mKwargs = {
 				'thumbnailUrl': medium['media_url_https'],
 				'variants': variants,

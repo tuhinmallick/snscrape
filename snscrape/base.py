@@ -51,8 +51,7 @@ def _json_serialise_datetime_enum(obj):
 
 def _json_dataclass_to_dict(obj, forBuggyIntParser = False):
 	if isinstance(obj, _JSONDataclass) or dataclasses.is_dataclass(obj):
-		out = {}
-		out['_type'] = f'{type(obj).__module__}.{type(obj).__name__}'
+		out = {'_type': f'{type(obj).__module__}.{type(obj).__name__}'}
 		for field in dataclasses.fields(obj):
 			assert field.name != '_type'
 			if field.name.startswith('_'):
