@@ -91,14 +91,14 @@ class TelegramChannelScraper(snscrape.base.Scraper):
 				_logger.warning(f'Possibly incorrect URL: {rawUrl!r}')
 			url = rawUrl.replace('//t.me/', '//t.me/s/')
 			date = datetime.datetime.strptime(dateDiv.find('time', datetime = True)['datetime'].replace('-', '', 2).replace(':', ''), '%Y%m%dT%H%M%S%z')
+			outlinks = []
 			if (message := post.find('div', class_ = 'tgme_widget_message_text')):
 				content = message.text
-				outlinks = []
 				for link in post.find_all('a'):
 					if any(x in link.parent.attrs.get('class', []) for x in ('tgme_widget_message_user', 'tgme_widget_message_author')):
 						# Author links at the top (avatar and name)
 						continue
-					if link['href'] == rawUrl or link['href'] == url:
+					if link['href'] in [rawUrl, url]:
 						# Generic filter of links to the post itself, catches videos, photos, and the date link
 						continue
 					if _SINGLE_MEDIA_LINK_PATTERN.match(link['href']):
@@ -109,11 +109,9 @@ class TelegramChannelScraper(snscrape.base.Scraper):
 						outlinks.append(href)
 			else:
 				content = None
-				outlinks = []
 			linkPreview = None
 			if (linkPreviewA := post.find('a', class_ = 'tgme_widget_message_link_preview')):
-				kwargs = {}
-				kwargs['href'] = urllib.parse.urljoin(pageUrl, linkPreviewA['href'])
+				kwargs = {'href': urllib.parse.urljoin(pageUrl, linkPreviewA['href'])}
 				if (siteNameDiv := linkPreviewA.find('div', class_ = 'link_preview_site_name')):
 					kwargs['siteName'] = siteNameDiv.text
 				if (titleDiv := linkPreviewA.find('div', class_ = 'link_preview_title')):

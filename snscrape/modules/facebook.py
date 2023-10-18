@@ -91,7 +91,19 @@ class _FacebookCommonScraper(snscrape.base.Scraper):
 	def _is_odd_link(self, href, entryText, mode):
 		# Returns (isOddLink: bool, warn: bool|None)
 		if mode == 'user':
-			if not any(x in href for x in ('/posts/', '/photos/', '/videos/', '/permalink.php?', '/events/', '/notes/', '/photo.php?', '/media/set/')):
+			if all(
+				x not in href
+				for x in (
+					'/posts/',
+					'/photos/',
+					'/videos/',
+					'/permalink.php?',
+					'/events/',
+					'/notes/',
+					'/photo.php?',
+					'/media/set/',
+				)
+			):
 				if href == '#' and 'new photo' in entryText and 'to the album' in entryText:
 					# Don't print a warning if it's a "User added 5 new photos to the album"-type entry, which doesn't have a permalink.
 					return True, False
@@ -127,7 +139,7 @@ class _FacebookCommonScraper(snscrape.base.Scraper):
 				continue
 			if mediaSetA and (not entryA or entryA['href'] == '#'):
 				href = mediaSetA['href']
-			elif entryA:
+			else:
 				href = entryA['href']
 			oddLink, warn = self._is_odd_link(href, entry.text, mode)
 			if oddLink:
@@ -222,8 +234,6 @@ class FacebookUserScraper(_FacebookUserAndCommunityScraper):
 		self._baseUrl = f'https://www.facebook.com/{self._username}/'
 
 	def _get_entity(self):
-		kwargs = {}
-
 		nameVerifiedMarkupPattern = re.compile(r'"markup":\[\["__markup_a588f507_0_0",\{"__html":(".*?")\}')
 		handleDivPattern = re.compile(r'<div\s[^>]*(?<=\s)data-key\s*=\s*"tab_home".*?</div>')
 		handlePattern = re.compile(r'<a\s[^>]*(?<=\s)href="/([^/]+)')
@@ -236,8 +246,7 @@ class FacebookUserScraper(_FacebookUserAndCommunityScraper):
 
 		handleDiv = handleDivPattern.search(r.text)
 		handle = handlePattern.search(handleDiv.group(0))
-		kwargs['username'] = handle.group(1)
-
+		kwargs = {'username': handle.group(1)}
 		nameVerifiedMarkup = nameVerifiedMarkupPattern.search(r.text)
 		nameVerifiedMarkup = json.loads(nameVerifiedMarkup.group(1))
 		nameVerifiedSoup = bs4.BeautifulSoup(nameVerifiedMarkup, 'lxml')
@@ -263,8 +272,7 @@ class FacebookUserScraper(_FacebookUserAndCommunityScraper):
 			elif text.endswith(' check-ins'):
 				kwargs['checkins'] = int(text.split(' ', 1)[0].replace(',', ''))
 
-		aboutDiv = soup.find('div', class_ = '_u9q')
-		if aboutDiv:
+		if aboutDiv := soup.find('div', class_='_u9q'):
 			# As if the above wasn't already ugly enough, this is where it gets really bad...
 			for div in aboutDiv.find_all('div', class_ = '_2pi9'):
 				img = div.find('img', class_ = '_3-91')

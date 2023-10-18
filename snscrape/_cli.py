@@ -47,13 +47,16 @@ class Logger(logging.Logger):
 
 
 def _requests_request_repr(name, request):
-	ret = []
-	ret.append(f'{name} = {request!r}')
-	ret.append(f'\n  {name}.method = {request.method}')
-	ret.append(f'\n  {name}.url = {request.url}')
-	ret.append(f'\n  {name}.headers = \\')
-	for field in request.headers:
-		ret.append(f'\n    {field} = {_repr("_", request.headers[field])}')
+	ret = [
+		f'{name} = {request!r}',
+		f'\n  {name}.method = {request.method}',
+		f'\n  {name}.url = {request.url}',
+		f'\n  {name}.headers = \\',
+	]
+	ret.extend(
+		f'\n    {field} = {_repr("_", request.headers[field])}'
+		for field in request.headers
+	)
 	for attr in ('body', 'params', 'data'):
 		if hasattr(request, attr) and getattr(request, attr):
 			ret.append(f'\n  {name}.{attr} = ')
@@ -62,11 +65,12 @@ def _requests_request_repr(name, request):
 
 
 def _requests_response_repr(name, response, withHistory = True):
-	ret = []
-	ret.append(f'{name} = {response!r}')
-	ret.append(f'\n  {name}.url = {response.url}')
-	ret.append(f'\n  {name}.request = ')
-	ret.append(_repr('_', response.request).replace('\n', '\n  '))
+	ret = [
+		f'{name} = {response!r}',
+		f'\n  {name}.url = {response.url}',
+		f'\n  {name}.request = ',
+		_repr('_', response.request).replace('\n', '\n  '),
+	]
 	if withHistory and response.history:
 		ret.append(f'\n  {name}.history = [')
 		for previousResponse in response.history:
@@ -75,16 +79,19 @@ def _requests_response_repr(name, response, withHistory = True):
 		ret.append('\n  ]')
 	ret.append(f'\n  {name}.status_code = {response.status_code}')
 	ret.append(f'\n  {name}.headers = \\')
-	for field in response.headers:
-		ret.append(f'\n    {field} = {_repr("_", response.headers[field])}')
+	ret.extend(
+		f'\n    {field} = {_repr("_", response.headers[field])}'
+		for field in response.headers
+	)
 	ret.append(f'\n  {name}.content = {_repr("_", response.content)}')
 	return ''.join(ret)
 
 
 def _requests_exception_repr(name, exc):
-	ret = []
-	ret.append(f'{name} = {exc!r}')
-	ret.append('\n  ' + _repr(f'{name}.request', exc.request).replace('\n', '\n  '))
+	ret = [
+		f'{name} = {exc!r}',
+		'\n  ' + _repr(f'{name}.request', exc.request).replace('\n', '\n  '),
+	]
 	ret.append('\n  ' + _repr(f'{name}.response', exc.response).replace('\n', '\n  '))
 	return ''.join(ret)
 
@@ -103,8 +110,16 @@ def _repr(name, value):
 		return f'{name} = <{type(value).__module__}.{type(value).__name__}>\n  ' + \
 		       '\n  '.join(_repr(f'{name}[{i}]', v).replace('\n', '\n  ') for i, v in enumerate(value))
 	if dataclasses.is_dataclass(value) and not isinstance(value, type):
-		return f'{name} = <{type(value).__module__}.{type(value).__name__}>\n  ' + \
-		       '\n  '.join(_repr(f'{name}.{f.name}', f.name) + ' = ' + _repr(f'{name}.{f.name}', getattr(value, f.name)).replace('\n', '\n  ') for f in dataclasses.fields(value))
+		return (
+			f'{name} = <{type(value).__module__}.{type(value).__name__}>\n  '
+			+ '\n  '.join(
+				f"{_repr(f'{name}.{f.name}', f.name)} = "
+				+ _repr(f'{name}.{f.name}', getattr(value, f.name)).replace(
+					'\n', '\n  '
+				)
+				for f in dataclasses.fields(value)
+			)
+		)
 	valueRepr = f'{name} = {value!r}'
 	if '\n' in valueRepr:
 		return ''.join(['\\\n  ', valueRepr.replace('\n', '\n  ')])
@@ -176,9 +191,7 @@ def parse_datetime_arg(arg):
 		except ValueError:
 			continue
 		else:
-			if d.tzinfo is None:
-				return d.replace(tzinfo = datetime.timezone.utc)
-			return d
+			return d.replace(tzinfo = datetime.timezone.utc) if d.tzinfo is None else d
 	# Try treating it as a unix timestamp
 	try:
 		d = datetime.datetime.fromtimestamp(int(arg), datetime.timezone.utc)

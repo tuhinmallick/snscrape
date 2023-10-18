@@ -77,9 +77,7 @@ class WeiboUserScraper(snscrape.base.Scraper):
 		if r.status_code == 200 and r.content == b'{"ok":0,"msg":"\\u8fd9\\u91cc\\u8fd8\\u6ca1\\u6709\\u5185\\u5bb9","data":{"cards":[]}}':
 			# 'No content here yet'. Appears to happen sometimes on pagination, possibly due to too fast requests; retry this
 			return False, 'no-content message'
-		if r.status_code != 200:
-			return False, 'non-200 status code'
-		return True, None
+		return (False, 'non-200 status code') if r.status_code != 200 else (True, None)
 
 	def _mblog_to_item(self, mblog):
 		if mblog.get('page_info', {}).get('type') not in (None, 'video', 'webpage'):

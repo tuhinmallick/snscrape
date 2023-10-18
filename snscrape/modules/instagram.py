@@ -168,7 +168,10 @@ class InstagramUserScraper(_InstagramCommonScraper):
 		ogDescription = r.text[ogDescriptionContentPos : r.text.index('"', ogDescriptionContentPos)]
 
 		numPattern = r'\d+(?:\.\d+)?m|\d+(?:\.\d+)?k|\d+,\d+|\d+'
-		ogDescriptionPattern = re.compile('^(' + numPattern + ') Followers, (' + numPattern + ') Following, (' + numPattern + r') Posts - See Instagram photos and videos from (?:(.*?) \(@([a-z0-9_.]+)\)|@([a-z0-9_-]+))$')
+		ogDescriptionPattern = re.compile(
+			f'^({numPattern}) Followers, ({numPattern}) Following, ({numPattern}'
+			+ r') Posts - See Instagram photos and videos from (?:(.*?) \(@([a-z0-9_.]+)\)|@([a-z0-9_-]+))$'
+		)
 		m = ogDescriptionPattern.match(ogDescription)
 		assert m, 'unexpected og:description format'
 

@@ -109,8 +109,6 @@ class _MastodonCommonScraper(snscrape.base.Scraper):
 			if entry.find('a', class_ = 'load-more'):
 				continue
 
-			tootKwargs = {}
-
 			info = entry.find('div', class_ = 'status__info')
 			if not info: # Before 2.5.0 (commit bb71538b)
 				info = entry.find('div', class_ = 'status__header')
@@ -119,16 +117,15 @@ class _MastodonCommonScraper(snscrape.base.Scraper):
 			link = info.find('a', class_ = 'status__relative-time')
 			if not link: # Detailed status?
 				link = info.find('a', class_ = 'detailed-status__datetime')
-			tootKwargs['url'] = link['href']
+			tootKwargs = {'url': link['href']}
 			tootKwargs['id'] = tootKwargs['url'].rsplit('/', 1)[1]
 			tootKwargs['date'] = datetime.datetime.strptime(info.find('data', class_ = 'dt-published')['value'], '%Y-%m-%dT%H:%M:%S+00:00').replace(tzinfo = datetime.timezone.utc)
 
-			userKwargs = {}
 			userLink = info.find('a', class_ = 'status__display-name')
 			if not userLink: # Detailed status?
 				userLink = entry.find('a', class_ = 'detailed-status__display-name')
 			userNameSpan = userLink.find('span', class_ = 'display-name')
-			userKwargs['account'] = userNameSpan.find('span').text.strip()
+			userKwargs = {'account': userNameSpan.find('span').text.strip()}
 			if userKwargs['account'].count('@') == 1: # Ancient versions don't include the instance for posts from accounts on the instance itself
 				userKwargs['account'] = self._url_to_account(userLink['href'])
 			userKwargs['_url'] = urllib.parse.urljoin(url, userLink['href'])
@@ -144,20 +141,31 @@ class _MastodonCommonScraper(snscrape.base.Scraper):
 				tootKwargs['spoilerText'] = '\n\n'.join(p.text for p in content.find('div', class_ = 'e-content').find_all('p'))
 
 			if (attachmentsDiv := entry.find('div', class_ = 'attachment-list')):
-				attachments = []
-				for a in attachmentsDiv.find_all('a'):
-					attachments.append(Attachment(url = urllib.parse.urljoin(url, a['href']), name = a.text.strip()))
+				attachments = [
+					Attachment(
+						url=urllib.parse.urljoin(url, a['href']), name=a.text.strip()
+					)
+					for a in attachmentsDiv.find_all('a')
+				]
 				tootKwargs['attachments'] = attachments
 			elif (mediaGalleryDiv := entry.find('div', attrs = {'data-component': 'MediaGallery'})): # Before 2.7.0 (https://github.com/mastodon/mastodon/issues/6714)
 				o = json.loads(mediaGalleryDiv['data-props'])
-				attachments = []
-				for medium in o['media']:
-					attachments.append(Attachment(url = urllib.parse.urljoin(url, medium['url']), name = medium['url'].rsplit('/', 1)[-1].strip()))
+				attachments = [
+					Attachment(
+						url=urllib.parse.urljoin(url, medium['url']),
+						name=medium['url'].rsplit('/', 1)[-1].strip(),
+					)
+					for medium in o['media']
+				]
 				tootKwargs['attachments'] = attachments
 			elif (attachmentsDiv := entry.find('div', class_ = 'status__attachments')): # Before 2.3.0 (commit 2bbf987a)
-				attachments = []
-				for a in attachmentsDiv.find_all('a'):
-					attachments.append(Attachment(url = urllib.parse.urljoin(url, a['href']), name = a['href'].rsplit('/', 1)[1]))
+				attachments = [
+					Attachment(
+						url=urllib.parse.urljoin(url, a['href']),
+						name=a['href'].rsplit('/', 1)[1],
+					)
+					for a in attachmentsDiv.find_all('a')
+				]
 				tootKwargs['attachments'] = attachments
 
 			links = []
@@ -181,9 +189,12 @@ class _MastodonCommonScraper(snscrape.base.Scraper):
 
 			if (pollDiv := entry.find('div', attrs = {'data-component': 'Poll'})):
 				o = json.loads(pollDiv['data-props'])
-				pollKwargs = {}
-				pollKwargs['id'] = o['poll']['id']
-				pollKwargs['expirationDate'] = datetime.datetime.strptime(o['poll']['expires_at'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo = datetime.timezone.utc)
+				pollKwargs = {
+					'id': o['poll']['id'],
+					'expirationDate': datetime.datetime.strptime(
+						o['poll']['expires_at'], '%Y-%m-%dT%H:%M:%S.%fZ'
+					).replace(tzinfo=datetime.timezone.utc),
+				}
 				pollKwargs['multiple'] = o['poll']['multiple']
 				pollKwargs['options'] = [PollOption(title = op['title'], votesCount = op['votes_count']) for op in o['poll']['options']]
 				pollKwargs['votesCount'] = o['poll']['votes_count']
@@ -281,8 +292,7 @@ class MastodonProfileScraper(_MastodonCommonScraper):
 
 			nextA = soup.find('a', class_ = 'load-more', href = lambda x: '?max_id=' in x or '&max_id=' in x)
 			if not nextA: # Before 2.5.0 (commit bb71538b)
-				paginationDiv = soup.find('div', class_ = 'pagination')
-				if paginationDiv:
+				if paginationDiv := soup.find('div', class_='pagination'):
 					nextA = paginationDiv.find('a', class_ = 'next')
 			if not nextA: # End of pagination
 				break
@@ -303,9 +313,7 @@ class MastodonTootScraperMode(enum.Enum):
 
 	@classmethod
 	def _cli_from_args(cls, args):
-		if args.thread:
-			return cls.THREAD
-		return cls.SINGLE
+		return cls.THREAD if args.thread else cls.SINGLE
 
 
 class MastodonTootScraper(_MastodonCommonScraper):

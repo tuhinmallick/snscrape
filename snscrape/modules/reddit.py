@@ -71,9 +71,7 @@ def _cmp_id(id1, id2):
 		return 1
 	if id1 < id2:
 		return -1
-	if id1 > id2:
-		return 1
-	return 0
+	return 1 if id1 > id2 else 0
 
 
 class _RedditPushshiftScraper(snscrape.base.Scraper):
@@ -86,9 +84,7 @@ class _RedditPushshiftScraper(snscrape.base.Scraper):
 			_logger.info('Got 429 response, sleeping')
 			time.sleep(10)
 			return False, 'rate-limited'
-		if r.status_code != 200:
-			return False, 'non-200 status code'
-		return True, None
+		return (False, 'non-200 status code') if r.status_code != 200 else (True, None)
 
 	def _get_api(self, url, params = None):
 		r = self._get(url, params = params, headers = self._headers, responseOkCallback = self._handle_rate_limiting)
@@ -104,15 +100,15 @@ class _RedditPushshiftScraper(snscrape.base.Scraper):
 		if permalink is None:
 			# E.g. comment dovj2v7
 			permalink = d.get('permalink_url')
-			if permalink is None:
-				if 'link_id' in d and d['link_id'].startswith('t3_'): # E.g. comment doraazf
-					if 'subreddit' in d:
-						permalink = f'/r/{d["subreddit"]}/comments/{d["link_id"][3:]}/_/{d["id"]}/'
-					else: # E.g. submission 617p51 but can likely happen for comments as well
-						permalink = f'/comments/{d["link_id"][3:]}/_/{d["id"]}/'
-				else:
-					_logger.warning('Unable to find or construct permalink')
-					permalink = '/'
+		if permalink is None:
+			if 'link_id' in d and d['link_id'].startswith('t3_'): # E.g. comment doraazf
+				if 'subreddit' in d:
+					permalink = f'/r/{d["subreddit"]}/comments/{d["link_id"][3:]}/_/{d["id"]}/'
+				else: # E.g. submission 617p51 but can likely happen for comments as well
+					permalink = f'/comments/{d["link_id"][3:]}/_/{d["id"]}/'
+			else:
+				_logger.warning('Unable to find or construct permalink')
+				permalink = '/'
 
 		kwargs = {
 			'author': d.get('author'),
